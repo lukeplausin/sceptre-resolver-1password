@@ -20,7 +20,7 @@ class OnePasswordResolver(Resolver):
             )
 
 
-    def _get_parameter_value(self, param, profile=None, region=None):
+    def resolve(self):
         """
         Attempts to get the 1password secret named by ``param``
         :param param: The name of the 1password secret in which to return.
@@ -30,10 +30,10 @@ class OnePasswordResolver(Resolver):
         :raises: KeyError
         """
 
-        param_data = param.split("#")
+        param_data = self.argument.split("#")
         search_field = param_data[0]
         if len(param_data) > 1:
-            tags = param.split("#")[1].split(",")
+            tags = self.argument.split("#")[1].split(",")
         else:
             tags = []
 
