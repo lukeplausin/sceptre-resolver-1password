@@ -56,14 +56,29 @@ class OnePasswordResolver(Resolver):
             # need different api calls for doc / vs secret?
             if search_field == 'document':
                 if 'documentAttributes' not in data['details'].keys():
-                    raise ValueError("Secret {} is not a document.".format(search_field, data['overview']['title']))
+                    raise ValueError("Secret {} is not a document.".format(data['overview']['title']))
                 else:
-                    return subprocess.check_output(['op','get','document', data['uuid']])
+                    return subprocess.check_output(['op','get','document', data['uuid']]).decode('utf-8')
             else:
                 field_data = [
                     field['value'] for field in data['details']['fields']
                     if field['designation'] == search_field
                 ]
                 if len(field_data) < 1:
-                    raise ValueError("Field {} not found in secret {}.".format(search_field, data['overview']['title']))
+                    # Try looking in sections also
+                    section_data = [
+                        field['v'] 
+                            for section in data['details']['sections']
+                            for field in section['fields']
+                            if field['t'] == search_field
+                    ]
+                    if len(section_data) < 1:
+                        # Try looking in sections also
+                        available = ["field: {}".format(field['designation']) for field in data['details']['fields']] + \
+                        ["section: {}".format(field['t'])
+                            for section in data['details']['sections'] for field in section['fields']]
+                        raise ValueError("Field {} not found in secret {}.\nAvailable:\n{}".format(
+                            search_field, data['overview']['title'], "\n".join(available)))
+                    else:
+                        return section_data[0]
                 return field_data[0]
