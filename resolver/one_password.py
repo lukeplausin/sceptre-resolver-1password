@@ -5,6 +5,12 @@ import subprocess
 
 
 class OnePasswordResolver(Resolver):
+
+    cache = {
+        "items": {},
+        "documents": {}
+    }
+
     def __init__(self, *args, **kwargs):
         super(OnePasswordResolver, self).__init__(*args, **kwargs)
         op_config_file = os.path.join(os.environ['HOME'], '.op', 'config')
@@ -18,7 +24,6 @@ class OnePasswordResolver(Resolver):
                 "Set up the 1password CLI before using this resolver. " +
                 "https://1password.com/downloads/command-line/"
             )
-
 
     def resolve(self):
         """
@@ -37,7 +42,11 @@ class OnePasswordResolver(Resolver):
         else:
             tags = []
 
-        items = json.loads(subprocess.check_output(['op','list','items']))
+        if "item_list" in self.cache.keys():
+            items = self.cache["item_list"]
+        else:
+            items = json.loads(subprocess.check_output(['op','list','items']))
+            self.cache["item_list"] = items
         filtered = [
             item for item in items
             if all(tag in item['overview']['tags'] for tag in tags)
@@ -52,13 +61,22 @@ class OnePasswordResolver(Resolver):
             raise ValueError("Query for tags {} returned no results in 1password.".format(tags))
         else:
             uuid = filtered[0]['uuid']
-            data = json.loads(subprocess.check_output(['op','get','item', uuid]))
+            if uuid in self.cache["items"].keys():
+                data = self.cache["items"][uuid]
+            else:
+                data = json.loads(subprocess.check_output(['op','get','item', uuid]))
+                self.cache["items"][uuid] = data
             # need different api calls for doc / vs secret?
             if search_field == 'document':
                 if 'documentAttributes' not in data['details'].keys():
                     raise ValueError("Secret {} is not a document.".format(data['overview']['title']))
                 else:
-                    return subprocess.check_output(['op','get','document', data['uuid']]).decode('utf-8')
+                    if data['uuid'] in self.cache["documents"].keys():
+                        doc = self.cache["documents"][data['uuid']]
+                    else:
+                        doc = subprocess.check_output(['op','get','document', data['uuid']]).decode('utf-8')
+                        self.cache["documents"][data['uuid']] = data
+                    return doc
             else:
                 field_data = [
                     field['value'] for field in data['details']['fields']
