@@ -49,7 +49,7 @@ class OnePasswordResolver(Resolver):
             self.cache["item_list"] = items
         filtered = [
             item for item in items
-            if all(tag in item['overview']['tags'] for tag in tags)
+            if all(tag in item.get('overview', {}).get('tags', []) for tag in tags)
         ]
         if len(filtered) > 1:
             raise ValueError("Query for tags {} returned more than one result in 1password: {}".format(
