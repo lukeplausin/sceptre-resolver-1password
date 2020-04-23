@@ -13,17 +13,6 @@ class OnePasswordResolver(Resolver):
 
     def __init__(self, *args, **kwargs):
         super(OnePasswordResolver, self).__init__(*args, **kwargs)
-        op_config_file = os.path.join(os.environ['HOME'], '.op', 'config')
-        if os.path.isfile(op_config_file):
-            with open(op_config_file, 'r') as conf:
-                self.op_config = json.load(conf)
-
-        else:
-            raise FileNotFoundError(
-                "The file {} was not found. ".format(op_config_file) +
-                "Set up the 1password CLI before using this resolver. " +
-                "https://1password.com/downloads/command-line/"
-            )
 
     def resolve(self):
         """
@@ -45,7 +34,15 @@ class OnePasswordResolver(Resolver):
         if "item_list" in self.cache.keys():
             items = self.cache["item_list"]
         else:
-            items = json.loads(subprocess.check_output(['op','list','items']))
+            try:
+                items = json.loads(subprocess.check_output(['op','list','items']))
+            except Exception as e:
+                raise RuntimeError(
+                    "Error executing the 1password cli: {}".format(e) +
+                    "Set up the 1password CLI before using this resolver. " +
+                    "https://1password.com/downloads/command-line/"
+                )
+
             self.cache["item_list"] = items
         filtered = [
             item for item in items
